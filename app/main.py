@@ -12,5 +12,3 @@ app= FastAPI(title= "RAG Backend")
 app.include_router(health.router)
 app.include_router(ingest.router)
 
-
-#uvicorn app.main:app --reload
