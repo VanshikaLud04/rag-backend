@@ -1,5 +1,4 @@
 from fastapi import APIRouter
-from pydantic import BaseModel
 import json, os,time
 
 
@@ -7,20 +6,24 @@ from app.services.embeddings import get_embeddings
 from app.services.similarity import cosine_similarity
 from app.services.explainer import explain_similarity
 from app.services.retriever import retrieve
-
+from app.services.generator import generate_answer
+from app.services.context_builder import build_context
+from app.schemas.query import   Query
 start_time =time.time()
 
 router = APIRouter()
 CHUNK_DIR = "data/chunks"
 
-class Query(BaseModel):
-    query: str
-    filename: str
+
 
 @router.post("/search")
 async def search(data: Query):
 
     file_path = os.path.join(CHUNK_DIR, f"{data.filename}.json")
+
+    if not os.path.exists(file_path):
+        return { "error" : "File not indexed yet."}
+
     with open(file_path, "r", encoding="utf-8") as f:
         chunks = json.load(f)
 
@@ -31,6 +34,7 @@ async def search(data: Query):
 
     t_retrieve= time.time()
     top_chunks = retrieve(query_embedding, chunks)
+    print("Retrieved chunks:", len(top_chunks))
     print("Retrieval time:", time.time() - t_retrieve)
 
 
@@ -55,7 +59,8 @@ async def search(data: Query):
                 "explanation": explanation
             })
 
-    context = "\n\n".join([c["text"] for c in top_results])       
+    context =  build_context(top_results)
+    answer= generate_answer(data.query, context)
 
     print("Chunks checked:", len(top_chunks))
     print("Passing threshold:", len(top_results))
@@ -75,6 +80,7 @@ async def search(data: Query):
       },
 
         "context_preview": context[:200],
+        "answer" :answer,
 
         "results": top_results
 
