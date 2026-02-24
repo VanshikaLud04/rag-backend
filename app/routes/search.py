@@ -60,31 +60,46 @@ async def search(data: Query):
             })
 
     context =  build_context(top_results)
-    answer= generate_answer(data.query, context)
+    print("Context length:", len(context))
+
+    generation= generate_answer(data.query, context)
+    metadata = []
+
+    for i, c in enumerate(top_chunks):
+        metadata.append({
+            "id": c["id"],
+            "score": c["score"],
+            "rank": i+1
+        })
+
 
     print("Chunks checked:", len(top_chunks))
     print("Passing threshold:", len(top_results))
     print("Total request time:", time.time() - start_time)
+    print("Generation completed")
+
+    metadata = []
+
+    for i, c in enumerate(top_chunks):
+        metadata.append({
+            "id": c["id"],
+            "score": c["score"],
+            "rank": i+1
+        })
 
     if not top_results:
+
         return {"results": "no similar object found."}
 
-    return {
-        "query": data.query,
+    else :
+        return {
+            "query": data.query,
+            "retrieval_meta" : metadata,
+            "answer": generation["answer"],
+            "model": generation["model"],
+            "sources": [c["id"] for c in top_results]
 
-        "retrieval_meta" :{
-            "chunks_checked": len(top_chunks),
-            "results_after_threshold": len(top_results),
-            "max_score": max_score,
-            "avg_score": avg_score
-      },
-
-        "context_preview": context[:200],
-        "answer" :answer,
-
-        "results": top_results
-
-    }
+        }
 
     
 
