@@ -7,5 +7,6 @@ numpy
 scikit-learn
 pypdf
 langchain-text-splitters
-langchain_openai
-google-generativeai
+langchain_google_genai
+chromadb
+langchain-chroma

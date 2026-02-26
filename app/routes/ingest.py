@@ -2,6 +2,7 @@ from fastapi import APIRouter, File, UploadFile
 from app.services.chunker import chunk_text
 from app.services.extract import extract_text
 from app.services.embeddings import get_embeddings
+from app.services.vector_store import add_to_vectorstore
 import json
 import os, uuid
 
@@ -44,13 +45,22 @@ async def ingest(file: UploadFile = File(...)):
     texts=[]
 
     for c in structured_chunks:
-        texts.append(c["texts"])
+        texts.append(c["text"])
 
         
     embeddings= get_embeddings(texts)
 
     for i , emb in enumerate(embeddings):
         structured_chunks[i]["embedding"]=emb 
+    
+    ids = [str(c["id"]) for c in structured_chunks]
+    documents = [c["text"] for c in structured_chunks]
+
+    add_to_vectorstore(
+        ids=ids,
+        texts=documents,
+        embeddings=embeddings
+    )
 
     with open(chunk_file, "w", encoding="utf-8") as f:
         json.dump(structured_chunks, f, indent=2)

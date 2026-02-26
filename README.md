@@ -1,149 +1,116 @@
-# RAG Backend — Semantic Retrieval & Grounded LLM API
+# Semantic RAG Backend — Vector Database Retrieval with Chroma
 
-A production-style Retrieval Augmented Generation (RAG) backend built with a backend-engineering mindset.
-The system performs semantic document indexing, similarity retrieval, context construction, and grounded LLM answer generation through a modular async API.
+An async backend system implementing **embedding-based semantic retrieval** using a persistent vector database (Chroma) combined with grounded LLM generation.
 
-Unlike notebook-centric AI projects, this repository focuses on **scalable backend architecture**, service separation, and real-time inference workflows.
-
----
-
-##  What This Project Does
-
-This backend allows users to:
-
-* Upload documents for semantic indexing
-* Retrieve relevant text chunks using embeddings
-* Build contextual prompts dynamically
-* Generate grounded answers using an LLM
-* Stream responses in real time through an API
-
-Pipeline:
-
-Upload → Extract → Chunk → Embed → Retrieve → Context → Generate
+This project demonstrates how modern AI backends move beyond keyword search by operating entirely in **vector space**.
 
 ---
 
 ##  Architecture Overview
 
-```plaintext
-app/
- ├── routes/
- │     └── search.py              # API orchestration
- ├── services/
- │     ├── retriever.py           # ranking engine
- │     ├── context_builder.py     # builds grounded context
- │     ├── generator.py           # streaming LLM layer
- │     └── embeddings.py
- ├── schemas/
- │     └── query.py
-data/
- ├── raw/
- └── chunks/
+Pipeline:
+
+```id="ragflow"
+Upload → Extract → Chunk → Embed → Store in Chroma → Vector Search → Context → Generate
 ```
 
-### Design Philosophy
+Core idea:
 
-* Clear separation between orchestration and logic layers
-* Retrieval-first architecture (not blind LLM calls)
-* Async-ready backend design
-* Debug observability for system understanding
+Natural language → Embedding vectors → Similarity search → Grounded answer generation.
 
 ---
 
-## Features
+##  Vector Database Integration
 
-*  Document ingestion + chunking pipeline
-*  Semantic similarity search with embeddings
-*  Context-aware prompt construction
-*  Streaming LLM responses
-*  Async FastAPI backend
-*  Dockerized deployment
-*  Retrieval metadata + debug signals
+### Text → Embeddings
+
+Each chunk is transformed into a high-dimensional vector:
+
+```id="vec"
+[0.12, -0.33, 0.89, ...]
+```
+
+Embeddings are stored inside **ChromaDB**.
+
+---
+
+### Query → Vector Search
+
+Instead of manual similarity loops, the backend performs:
+
+```id="chromasearch"
+collection.query(query_embeddings=[vector], n_results=3)
+```
+
+Chroma handles:
+
+* cosine similarity
+* ranking
+* nearest neighbour retrieval
+
+---
+
+##  Backend Structure
+
+```id="structure"
+app/
+ ├── routes/
+ │     └── search.py
+ ├── services/
+ │     ├── embeddings.py
+ │     ├── vector_store.py     # NEW (Chroma integration)
+ │     ├── context_builder.py
+ │     └── generator.py
+ ├── schemas/
+ │     └── query.py
+data/
+ └── chroma_db/
+```
+
+Design philosophy:
+
+* Routes = orchestration
+* Services = isolated backend logic
 
 ---
 
 ##  Tech Stack
 
-* FastAPI
-* Python Async APIs
-* Sentence Transformers
-* Cosine Similarity Retrieval
-* StreamingResponse
-* Docker
+* FastAPI (async APIs)
+* Sentence Transformers (embeddings)
+* ChromaDB (vector database)
+* Streaming LLM responses
+* Docker deployment
 
 ---
 
-##  Local Setup
-
-```bash
-git clone <repo_url>
-cd rag-backend
-
-python -m venv myvenv
-source myvenv/bin/activate
-pip install -r requirements.txt
-
-uvicorn app.main:app --reload
-```
-
----
-
-##  Docker Usage
-
-Build image:
-
-```bash
-docker build -t rag-backend .
-```
-
-Run container with persistent storage:
-
-```bash
-docker run -p 8000:8000 -v $(pwd)/data:/app/data rag-backend
-```
-
-Volume mount ensures indexed chunks remain available after restarts.
-
----
-
-##  API Endpoints
+##  API Flow
 
 ### POST /ingest
 
-Uploads and indexes a document.
+* Extract text
+* Chunk documents
+* Generate embeddings
+* Store vectors inside Chroma collection
+
+---
 
 ### POST /search
 
-```json
-{
-  "query": "your question",
-  "filename": "indexed_file"
-}
-```
+Steps executed:
 
-Returns:
-
-* retrieval metadata
-* ranked chunks
-* streamed LLM response
+1. Convert query into embedding vector
+2. Perform nearest-neighbour search in Chroma
+3. Build grounded context from retrieved documents
+4. Generate response using LLM
 
 ---
 
-##  Engineering Highlights
+## Engineering Highlights
 
-* Service-based modular backend
-* Async orchestration layer
-* Streaming generator implementation
-* Retrieval-grounded generation design
-* Docker-ready inference backend
-
----
-
-## Research Motivation
-
-This system explores:
-
-* Retrieval-based grounding for LLM reliability
-* Semantic similarity ranking pipelines
-* Scalable AI backend design beyond notebooks
+* Persistent vector database
+* Retrieval-first architecture
+* Modular backend services
+* Streaming grounded generation
+* Dockerized deployment
 

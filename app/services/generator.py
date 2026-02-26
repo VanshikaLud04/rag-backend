@@ -1,23 +1,39 @@
 import os
-import google.generativeai as genai
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.messages import HumanMessage, SystemMessage
 from dotenv import load_dotenv
 
 load_dotenv()
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-model = genai.GenerativeModel("gemini-1.5-flash")
+llm = ChatGoogleGenerativeAI(
+    model="gemini-1.5-flash",
+    temperature=0.3,
+    google_api_key=os.getenv("GOOGLE_API_KEY")
+)
 
-SYSTEM_PROMPT = """
-You are an expert assistant.
-Answer ONLY using the provided context.
-If answer is not present, say you don't know.
+system_prompt = """
+You are a Retrieval Augmented assistant.
+
+Rules:
+- Answer ONLY from given context.
+- Do not invent facts.
+- If context is insufficient say: "Not found in document."
+- Keep answer concise and factual.
+- After answer, cite chunk IDs used.
 """
 
 
-def generate_answer(query: str, context: str):
+def stream_answer(query: str, context: str, sources: list):
+    print("Streaming response")
 
-    full_prompt = f"""
-{SYSTEM_PROMPT}
+    source_text = ",".join(map(str, sources))
+
+    messages = [
+        SystemMessage(content=system_prompt),
+        HumanMessage(
+            content=f"""
+Sources:
+{source_text}
 
 Context:
 {context}
@@ -25,12 +41,14 @@ Context:
 Question:
 {query}
 """
+        )
+    ]
 
-    response = model.generate_content(full_prompt)
+    try:
+        for chunk in llm.stream(messages):
+            if chunk.content:
+                yield chunk.content
 
-    generated_text = response.text
-
-    return {
-        "answer": generated_text,
-        "model": "gemini-1.5-flash"
-    }
+    except Exception as e:
+        print("error", str(e))
+        yield "\n[Generation failed]"
