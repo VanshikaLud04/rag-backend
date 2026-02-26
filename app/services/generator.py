@@ -1,15 +1,9 @@
 import os
+from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, SystemMessage
-from dotenv import load_dotenv
 
 load_dotenv()
-
-llm = ChatGoogleGenerativeAI(
-    model="gemini-1.5-flash",
-    temperature=0.3,
-    google_api_key=os.getenv("GOOGLE_API_KEY")
-)
 
 system_prompt = """
 You are a Retrieval Augmented assistant.
@@ -23,8 +17,26 @@ Rules:
 """
 
 
+def get_llm():
+    api_key = os.getenv("GOOGLE_API_KEY")
+
+    if not api_key:
+        raise RuntimeError(
+            "Google API key not found. "
+            "Set GOOGLE_API_KEY in environment."
+        )
+
+    return ChatGoogleGenerativeAI(
+        model="gemini-1.5-flash",
+        temperature=0.2,
+        google_api_key=api_key
+    )
+
+
 def stream_answer(query: str, context: str, sources: list):
     print("Streaming response")
+
+    llm = get_llm()   
 
     source_text = ",".join(map(str, sources))
 
@@ -50,5 +62,5 @@ Question:
                 yield chunk.content
 
     except Exception as e:
-        print("error", str(e))
+        print("error:", str(e))
         yield "\n[Generation failed]"
