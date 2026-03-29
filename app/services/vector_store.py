@@ -1,13 +1,9 @@
 import chromadb
-from chromadb.config import Settings
 
-client= chromadb.Client(
-    Settings(
-        persist_directory= "data/chromadb"
-    )
-)
+client = chromadb.PersistentClient(path="data/chromadb")
 
-collection= client.get_or_create_collection( name="rag_collection")
+collection = client.get_or_create_collection(name="rag_collection")
+
 
 def add_to_vectorstore(ids, documents, embeddings):
     collection.add(
@@ -16,9 +12,16 @@ def add_to_vectorstore(ids, documents, embeddings):
         embeddings=embeddings
     )
 
-def search_vectorstore(query_embeddings, TOP_K):
-    results=collection.query(
-        query_embeddings=[query_embeddings],
-        n_results=TOP_K
+
+def search_vectorstore(query_embedding, top_k=3):
+    results = collection.query(
+        query_embeddings=[query_embedding],
+        n_results=top_k
     )
-    return results["documents"][0]
+    docs = results["documents"][0]
+    distances = results["distances"][0]
+
+    return [
+        {"text": doc, "score": 1 - dist, "id": i}
+        for i, (doc, dist) in enumerate(zip(docs, distances))
+    ]

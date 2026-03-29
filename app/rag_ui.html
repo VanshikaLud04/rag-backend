@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAG</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #09090f;
+      color: #e8e4ff;
+      font-family: "Courier New", monospace;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .container { width: 100%; max-width: 580px; }
+
+    .header {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      margin-bottom: 2.5rem;
+    }
+    .title {
+      font-size: 0.8rem;
+      letter-spacing: 0.3em;
+      color: #a78bfa;
+      text-transform: uppercase;
+    }
+    .title-dim {
+      font-size: 0.8rem;
+      letter-spacing: 0.2em;
+      color: #7c6bcc;
+      text-transform: uppercase;
+    }
+    .title-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #7c6bcc;
+      display: inline-block;
+      margin-bottom: 1px;
+      vertical-align: middle;
+    }
+
+    .section {
+      margin-bottom: 1.75rem;
+    }
+    .section-label {
+      font-size: 0.68rem;
+      letter-spacing: 0.2em;
+      color: #9d8df0;
+      text-transform: uppercase;
+      margin-bottom: 0.6rem;
+    }
+
+    .upload-zone {
+      border: 1px dashed #6d5fc0;
+      padding: 1.6rem;
+      text-align: center;
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: #c4b5fd;
+      transition: all 0.15s;
+      position: relative;
+    }
+    .upload-zone:hover, .upload-zone.ready {
+      border-color: #a78bfa;
+      border-style: solid;
+      color: #ede9fe;
+      background: rgba(124, 58, 237, 0.05);
+    }
+    .upload-zone .file-icon {
+      display: block;
+      font-size: 1.1rem;
+      margin-bottom: 0.4rem;
+      color: #7c6bcc;
+    }
+    .upload-zone.ready .file-icon { color: #a78bfa; }
+
+    .divider {
+      height: 1px;
+      background: #1e1445;
+      margin: 0.75rem 0;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 0.65rem;
+      background: transparent;
+      border: 1px solid #6d5fc0;
+      color: #c4b5fd;
+      font-family: "Courier New", monospace;
+      font-size: 0.82rem;
+      letter-spacing: 0.15em;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+    }
+    .btn:hover { border-color: #a78bfa; color: #ede9fe; background: rgba(124, 58, 237, 0.07); }
+    .btn:disabled { color: #3d2e7a; border-color: #28195c; cursor: not-allowed; background: transparent; }
+    .btn-arrow { opacity: 0.7; }
+
+    .row { display: flex; gap: 0.5rem; }
+    input[type="text"] {
+      flex: 1;
+      background: transparent;
+      border: 1px solid #6d5fc0;
+      color: #e8e4ff;
+      font-family: "Courier New", monospace;
+      font-size: 0.85rem;
+      padding: 0.65rem 0.8rem;
+      outline: none;
+      transition: border 0.15s;
+    }
+    input[type="text"]:focus { border-color: #a78bfa; }
+    input[type="text"]::placeholder { color: #7c6bcc; }
+    .ask { width: auto; padding: 0.65rem 1.1rem; flex-shrink: 0; }
+
+    .answer-wrap {
+      margin-top: 0.5rem;
+      border: 1px solid #28195c;
+      background: #0b0818;
+    }
+    .answer-header {
+      padding: 0.4rem 0.85rem;
+      border-bottom: 1px solid #28195c;
+      font-size: 0.65rem;
+      letter-spacing: 0.2em;
+      color: #9d8df0;
+      text-transform: uppercase;
+    }
+    .answer {
+      padding: 0.9rem;
+      font-size: 0.85rem;
+      line-height: 1.9;
+      color: #9d8df0;
+      min-height: 60px;
+      white-space: pre-wrap;
+    }
+    .answer.live { color: #ddd6fe; }
+
+    .blink {
+      display: inline-block;
+      width: 6px; height: 12px;
+      background: #7c3aed;
+      margin-left: 2px;
+      vertical-align: middle;
+      animation: bk 0.7s step-end infinite;
+    }
+    @keyframes bk { 50% { opacity: 0; } }
+
+    .status {
+      font-size: 0.72rem;
+      color: #9d8df0;
+      margin-top: 0.4rem;
+      letter-spacing: 0.06em;
+      min-height: 16px;
+      padding-left: 0.1rem;
+    }
+    .status.ok { color: #c4b5fd; }
+    .status.err { color: #f87171; }
+
+    .chunks-badge {
+      display: inline-block;
+      background: rgba(167, 139, 250, 0.1);
+      border: 1px solid #6d5fc0;
+      color: #c4b5fd;
+      font-size: 0.68rem;
+      letter-spacing: 0.12em;
+      padding: 0.15rem 0.5rem;
+      margin-left: 0.4rem;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <span class="title">rag</span>
+    <span class="title-dot"></span>
+    <span class="title-dim">backend</span>
+  </div>
+
+  <div class="section">
+    <div class="section-label">document</div>
+    <div class="upload-zone" id="zone">
+      <span class="file-icon">◈</span>
+      drop file or click to upload
+    </div>
+    <input type="file" id="file" accept=".pdf,.txt" hidden />
+    <div class="divider"></div>
+    <button class="btn" id="ingestBtn" disabled>
+      <span>ingest</span><span class="btn-arrow">→</span>
+    </button>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">query</div>
+    <div class="row">
+      <input type="text" id="q" placeholder="ask something..." />
+      <button class="btn ask" id="askBtn">ask →</button>
+    </div>
+    <div class="answer-wrap">
+      <div class="answer-header">response</div>
+      <div class="answer" id="answer">—</div>
+    </div>
+  </div>
+
+</div>
+<script>
+  const API = "http://localhost:8000";
+  let fname = null, busy = false;
+  const zone = document.getElementById("zone");
+  const file = document.getElementById("file");
+  const ingestBtn = document.getElementById("ingestBtn");
+  const status = document.getElementById("status");
+  const q = document.getElementById("q");
+  const askBtn = document.getElementById("askBtn");
+  const answer = document.getElementById("answer");
+
+  zone.onclick = () => file.click();
+  zone.ondragover = e => e.preventDefault();
+  zone.ondrop = e => {
+    e.preventDefault();
+    const f = e.dataTransfer.files[0];
+    if (f) { const dt = new DataTransfer(); dt.items.add(f); file.files = dt.files; file.dispatchEvent(new Event("change")); }
+  };
+
+  file.onchange = () => {
+    const f = file.files[0];
+    if (!f) return;
+    zone.innerHTML = `<span class="file-icon">◈</span>${f.name}`;
+    zone.classList.add("ready");
+    ingestBtn.disabled = false;
+    status.textContent = "";
+    status.className = "status";
+  };
+
+  ingestBtn.onclick = async () => {
+    const f = file.files[0];
+    if (!f) return;
+    ingestBtn.disabled = true;
+    status.textContent = "indexing...";
+    const form = new FormData();
+    form.append("file", f);
+    try {
+      const res = await fetch(`${API}/ingest`, { method: "POST", body: form });
+      const data = await res.json();
+      fname = data.saved_as?.replace(/\.[^.]+$/, "");
+      status.innerHTML = `indexed <span class="chunks-badge">${data.chunks} chunks</span>`;
+      status.className = "status ok";
+    } catch {
+      status.textContent = "error — is backend running?";
+      status.className = "status err";
+      ingestBtn.disabled = false;
+    }
+  };
+
+  async function ask() {
+    const query = q.value.trim();
+    if (!query || busy) return;
+    if (!fname) { answer.textContent = "ingest a document first."; return; }
+    busy = true;
+    askBtn.disabled = true;
+    answer.className = "answer live";
+    answer.innerHTML = '<span class="blink"></span>';
+    try {
+      const res = await fetch(`${API}/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, filename: fname }),
+      });
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let text = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        text += dec.decode(value, { stream: true });
+        answer.innerHTML = text + '<span class="blink"></span>';
+      }
+      answer.innerHTML = text;
+    } catch {
+      answer.textContent = "error — is backend running?";
+      answer.className = "answer";
+    } finally {
+      busy = false;
+      askBtn.disabled = false;
+    }
+  }
+
+  askBtn.onclick = ask;
+  q.onkeydown = e => { if (e.key === "Enter") ask(); };
+</script>
+</body>
+</html>

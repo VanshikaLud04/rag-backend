@@ -1,116 +1,160 @@
-# Semantic RAG Backend — Vector Database Retrieval with Chroma
+# Semantic RAG Backend 
 
-An async backend system implementing **embedding-based semantic retrieval** using a persistent vector database (Chroma) combined with grounded LLM generation.
-
-This project demonstrates how modern AI backends move beyond keyword search by operating entirely in **vector space**.
+An async backend implementing embedding-based semantic retrieval using ChromaDB as a persistent vector store, combined with grounded LLM generation via Google Gemini. Includes a minimal HTML frontend for document ingestion and querying.
 
 ---
 
-##  Architecture Overview
+## Pipeline
 
-Pipeline:
-
-```id="ragflow"
+```
 Upload → Extract → Chunk → Embed → Store in Chroma → Vector Search → Context → Generate
 ```
 
-Core idea:
-
-Natural language → Embedding vectors → Similarity search → Grounded answer generation.
-
 ---
 
-##  Vector Database Integration
+## Project Structure
 
-### Text → Embeddings
-
-Each chunk is transformed into a high-dimensional vector:
-
-```id="vec"
-[0.12, -0.33, 0.89, ...]
+```
+rag-backend/
+ ├── app/
+ │     ├── routes/
+ │     │     └── search.py
+ │     ├── services/
+ │     │     ├── embeddings.py
+ │     │     ├── vector_store.py
+ │     │     ├── context_builder.py
+ │     │     └── generator.py
+ │     └── schemas/
+ │           └── query.py
+ ├── data/
+ │     └── chroma_db/
+ ├── rag-ui-minimal.html
+ ├── Dockerfile
+ ├── requirements.txt
+ └── README.md
 ```
 
-Embeddings are stored inside **ChromaDB**.
+---
+
+## Prerequisites
+
+- Python 3.10+
+- A Google Gemini API key
 
 ---
 
-### Query → Vector Search
+## Getting Started
 
-Instead of manual similarity loops, the backend performs:
+**1. Clone the repo**
 
-```id="chromasearch"
-collection.query(query_embeddings=[vector], n_results=3)
+```bash
+git clone https://github.com/VanshikaLud04/rag-backend.git
+cd rag-backend
 ```
 
-Chroma handles:
+**2. Create and activate a virtual environment**
 
-* cosine similarity
-* ranking
-* nearest neighbour retrieval
-
----
-
-##  Backend Structure
-
-```id="structure"
-app/
- ├── routes/
- │     └── search.py
- ├── services/
- │     ├── embeddings.py
- │     ├── vector_store.py     # NEW (Chroma integration)
- │     ├── context_builder.py
- │     └── generator.py
- ├── schemas/
- │     └── query.py
-data/
- └── chroma_db/
+```bash
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
 ```
 
-Design philosophy:
+**3. Install dependencies**
 
-* Routes = orchestration
-* Services = isolated backend logic
+```bash
+pip install -r requirements.txt
+```
 
----
+> First run will download the sentence-transformer model (~90MB). This is automatic.
 
-##  Tech Stack
+**4. Set up environment variables**
 
-* FastAPI (async APIs)
-* Sentence Transformers (embeddings)
-* ChromaDB (vector database)
-* Streaming LLM responses
-* Docker deployment
+Create a `.env` file in the root:
 
----
+```
+GOOGLE_API_KEY=your_gemini_api_key_here
+```
 
-##  API Flow
+**5. Run the backend**
 
-### POST /ingest
+```bash
+uvicorn app.main:app --reload --port 8000
+```
 
-* Extract text
-* Chunk documents
-* Generate embeddings
-* Store vectors inside Chroma collection
+Backend will be live at `http://localhost:8000`.
 
----
+**6. Open the frontend**
 
-### POST /search
+With the backend running, open `rag-ui-minimal.html` directly in your browser:
 
-Steps executed:
-
-1. Convert query into embedding vector
-2. Perform nearest-neighbour search in Chroma
-3. Build grounded context from retrieved documents
-4. Generate response using LLM
+```bash
+open rag-ui-minimal.html        # macOS
+# or just double-click the file
+```
 
 ---
 
-## Engineering Highlights
+## Using Docker
 
-* Persistent vector database
-* Retrieval-first architecture
-* Modular backend services
-* Streaming grounded generation
-* Dockerized deployment
+```bash
+docker build -t rag-backend .
+docker run -p 8000:8000 --env GOOGLE_API_KEY=your_key rag-backend
+```
 
+---
+
+## API Reference
+
+### `POST /ingest`
+
+Upload a `.pdf` or `.txt` file. The backend extracts text, chunks it, generates embeddings, and stores them in ChromaDB.
+
+**Request:** `multipart/form-data` with a `file` field.
+
+**Response:**
+```json
+{
+  "saved_as": "document.pdf",
+  "chunks": 42
+}
+```
+
+---
+
+### `POST /search`
+
+Query the ingested document. Returns a streamed LLM response grounded in retrieved chunks.
+
+**Request:**
+```json
+{
+  "query": "What is the refund policy?",
+  "filename": "document"
+}
+```
+
+**Response:** Streaming plain text.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| API framework | FastAPI |
+| Embeddings | Sentence Transformers |
+| Vector database | ChromaDB |
+| LLM | Google Gemini (via `google-generativeai`) |
+| Streaming | FastAPI `StreamingResponse` |
+| Deployment | Docker |
+
+---
+
+## How Vector Search Works
+
+Each text chunk is converted into a high-dimensional embedding vector and stored in ChromaDB. At query time:
+
+1. The query is embedded using the same model
+2. ChromaDB performs cosine similarity search to find the top-k nearest chunks
+3. Retrieved chunks are assembled into a context prompt
+4. Gemini generates a grounded response, streamed back to the client
